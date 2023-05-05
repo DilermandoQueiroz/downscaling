@@ -13,7 +13,7 @@ do
     if [ ! -f "$filepath" ]
     then
         echo "Downloading $filename"
-        wget "https://nex-gddp-cmip6.s3-us-west-2.amazonaws.com/NEX-GDDP-CMIP6/CNRM-CM6-1/historical/r1i1p1f2/pr/$filename" -P CMIP6/
+        wget "https://nex-gddp-cmip6.s3-us-west-2.amazonaws.com/NEX-GDDP-CMIP6/CNRM-CM6-1/historical/r1i1p1f2/pr/$filename" -P $dest_dir
     else
         echo "File $filename already exists, skipping."
     fi
