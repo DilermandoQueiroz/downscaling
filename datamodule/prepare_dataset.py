@@ -69,4 +69,9 @@ if __name__ == "__main__":
     parser.add_argument('--time_end', type=str, default='2014', help='End time in the format YYYY.')
     parser.add_argument('--bbox', type=List[float], default=[-35, -75, 5, -35], help='Bounding box in the format [lat_min, lon_min, lat_max, lon_max].')
     parser.add_argument('--size', type=int, default=32, help='Size of the slices.')
+
+    args = parser.parse_args()
+    with open(f'{args.data_dir_save}/{args.type}_args.txt', 'w') as f:
+        f.write(str(args))
+    
     main(**vars(parser.parse_args()))
