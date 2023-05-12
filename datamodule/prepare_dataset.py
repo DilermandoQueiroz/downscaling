@@ -27,7 +27,8 @@ def prepare_data(data_source: str, data_dir: str, time_init: str, time_end: str,
     elif data_source == "chirps":
         data = xr.open_dataset(data_dir)
         data = data.sel(time=slice(time_init, time_end), latitude=slice(bbox[0], bbox[2]), longitude=slice(bbox[1], bbox[3]))
-    
+        data = data.rename({'precip': 'pr'})
+
     return data
 
 def slicing(data: xr.Dataset, size: int):
@@ -48,16 +49,19 @@ def slicing(data: xr.Dataset, size: int):
     
     return np.array(data_slices)
 
-
 def main(data_dir: str, time_init: str, time_end: str, bbox: List[float], size: int, data_dir_save: str, type: str):
+    print('PREPARING CMIP6 DATA -------')
     cmip6 = prepare_data(data_source="cmip6", data_dir=f"{data_dir}/CNRM-CMIP6",
                           time_init=time_init, time_end=time_end, bbox=bbox)
+    print('PREPARING CHIRPS DATA -------')
     chirps = prepare_data(data_source="chirps", data_dir=f"{data_dir}/CHIRPS/chirps-v2.0.monthly.nc",
                           time_init=time_init, time_end=time_end, bbox=bbox) 
     ratio = len(chirps.longitude) / len(cmip6.longitude)
-    np_cmip6 = slicing(cmip6, size)
+    print('SLICING CMIP6 DATA -------')
+    # np_cmip6 = slicing(cmip6, size)
+    # np.save(f'{data_dir_save}/{type}_cmip6.npy', np_cmip6)
+    print('SLICING CHIRPS DATA -------')
     np_chirps = slicing(chirps, int(size * ratio))
-    np.save(f'{data_dir_save}/{type}_cmip6.npy', np_cmip6)
     np.save(f'{data_dir_save}/{type}_chirps.npy', np_chirps)
 
 if __name__ == "__main__":
