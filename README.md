@@ -1,6 +1,6 @@
 # Spatial Downscaling
 
-This repository contains the data and code related to the downscaling process of CNRM-CMIP6 model data to CHIRPS. Additionally, an animated GIF showcasing the results of the process is included.
+This repository contains the data and code related to the downscaling process of CNRM-CMIP6 model data to CHIRPS.
 
 # Project Description
 
