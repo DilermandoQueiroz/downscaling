@@ -18,6 +18,7 @@ def prepare_data(data_source: str, data_dir: str, time_init: str, time_end: str,
     """
     if data_source == "cmip6":
         data = xr.open_mfdataset(f'{data_dir}/*.nc', combine='by_coords')
+        data.pr = data.pr * 86400
         data = data.resample(time='1MS').mean()
         data = data.assign_coords(lon=(((data.lon + 180) % 360) - 180))
         data = data.roll(lon=int(len(data['lon']) / 2), roll_coords=True)
@@ -53,13 +54,16 @@ def main(data_dir: str, time_init: str, time_end: str, bbox: List[float], size: 
     print('PREPARING CMIP6 DATA -------')
     cmip6 = prepare_data(data_source="cmip6", data_dir=f"{data_dir}/CNRM-CMIP6",
                           time_init=time_init, time_end=time_end, bbox=bbox)
+    
     print('PREPARING CHIRPS DATA -------')
     chirps = prepare_data(data_source="chirps", data_dir=f"{data_dir}/CHIRPS/chirps-v2.0.monthly.nc",
                           time_init=time_init, time_end=time_end, bbox=bbox) 
     ratio = len(chirps.longitude) / len(cmip6.longitude)
+
     print('SLICING CMIP6 DATA -------')
     np_cmip6 = slicing(cmip6, size)
     np.save(f'{data_dir_save}/{type}_cmip6.npy', np_cmip6)
+    
     print('SLICING CHIRPS DATA -------')
     np_chirps = slicing(chirps, int(size * ratio))
     np.save(f'{data_dir_save}/{type}_chirps.npy', np_chirps)
