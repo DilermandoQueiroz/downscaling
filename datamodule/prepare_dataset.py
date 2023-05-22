@@ -18,8 +18,8 @@ def prepare_data(data_source: str, data_dir: str, time_init: str, time_end: str,
     """
     if data_source == "cmip6":
         data = xr.open_mfdataset(f'{data_dir}/*.nc', combine='by_coords')
-        data.pr = data.pr * 86400
-        data = data.resample(time='1MS').mean()
+        data = data * 86400
+        data = data.resample(time='1MS').sum()
         data = data.assign_coords(lon=(((data.lon + 180) % 360) - 180))
         data = data.roll(lon=int(len(data['lon']) / 2), roll_coords=True)
         data = data.sel(time=slice(time_init, time_end), lat=slice(bbox[0], bbox[2]), lon=slice(bbox[1], bbox[3]))
