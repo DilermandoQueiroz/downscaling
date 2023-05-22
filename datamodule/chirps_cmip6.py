@@ -1,6 +1,7 @@
 import lightning.pytorch as pl
 import torch
 import numpy as np
+from torchvision import transforms
 
 class ChirpsCmip6(torch.utils.data.Dataset):
     """ChirpsCmip6 dataset.
@@ -24,8 +25,29 @@ class ChirpsCmip6(torch.utils.data.Dataset):
 
         self.chirps = [x for x in self.chirps if np.isnan(x).sum() == 0]
         self.cmip6 = [x for x in self.cmip6 if np.isnan(x).sum() == 0]
+        
         self.chirps = np.array(self.chirps)
         self.cmip6 = np.array(self.cmip6)
+        
+        self.chirps[np.isnan(self.chirps)] = 0
+        self.cmip6[np.isnan(self.cmip6)] = 0
+
+        # find mean and std
+        self.chirps_mean = self.chirps.mean()
+        self.chirps_std = self.chirps.std()
+        self.cmip6_mean = self.cmip6.mean()
+        self.cmip6_std = self.cmip6.std()
+
+        self.transform_chirps = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[self.chirps_mean], std=[self.chirps_std])
+        ])
+
+        self.transform_cmip6 = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[self.cmip6_mean], std=[self.cmip6_std])
+        ])
+
 
     def __len__(self):
         """Length of the dataset.
@@ -36,7 +58,9 @@ class ChirpsCmip6(torch.utils.data.Dataset):
         """Get item.
         """
         chirps = self.chirps[index]
+        chirps = self.transform_chirps(chirps)
         cmip6 = self.cmip6[index]
+        cmip6 = self.transform_cmip6(cmip6)
 
         return chirps, cmip6
 
