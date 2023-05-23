@@ -42,11 +42,12 @@ def slicing(data: xr.Dataset, size: int):
     Returns:
         data_slices (List[float, float]): List of slices.
     """
+    data = data.chunk({'latitude': size, 'longitude': size})
     data_slices = []
     for year in range(0, len(data['time'])):
         for latitude in range(0, len(data['latitude']), size):
             for longitude in range(0, len(data['longitude']), size):
-                data_slices.append(data.pr[year, latitude:latitude+size, longitude:longitude+size].values)
+                data_slices.append(data.pr.isel(time=year, latitude=slice(latitude, latitude+size), longitude=slice(longitude, longitude+size)).values)
     
     return np.array(data_slices)
 
@@ -60,13 +61,14 @@ def main(data_dir: str, time_init: str, time_end: str, bbox: List[float], size: 
                           time_init=time_init, time_end=time_end, bbox=bbox) 
     ratio = len(chirps.longitude) / len(cmip6.longitude)
 
+    print('SLICING CHIRPS DATA -------')
+    np_chirps = slicing(chirps, int(size * ratio))
+    np.save(f'{data_dir_save}/{type}_chirps.npy', np_chirps)
+    
     print('SLICING CMIP6 DATA -------')
     np_cmip6 = slicing(cmip6, size)
     np.save(f'{data_dir_save}/{type}_cmip6.npy', np_cmip6)
     
-    print('SLICING CHIRPS DATA -------')
-    np_chirps = slicing(chirps, int(size * ratio))
-    np.save(f'{data_dir_save}/{type}_chirps.npy', np_chirps)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Prepare CMIP6/CHIRPS data for the given time period and bounding box.')
