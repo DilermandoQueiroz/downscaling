@@ -23,15 +23,20 @@ class ChirpsCmip6(torch.utils.data.Dataset):
         else:
             raise ValueError(f'Invalid type: {type} (must be train, val or test)')
 
-        self.chirps = [x for x in self.chirps if np.isnan(x).sum() == 0]
-        self.cmip6 = [x for x in self.cmip6 if np.isnan(x).sum() == 0]
-        
-        self.chirps = np.array(self.chirps)
-        self.cmip6 = np.array(self.cmip6)
-        
         self.chirps[np.isnan(self.chirps)] = 0
         self.cmip6[np.isnan(self.cmip6)] = 0
 
+        # if chirps and cmip6 are all zero, remove it
+        self.chirps2 = []
+        self.cmip62 = []
+        for i in range(len(self.chirps)):
+            if self.chirps[i].sum() != 0 and self.cmip6[i].sum() != 0:
+                self.chirps2.append(self.chirps[i])
+                self.cmip62.append(self.cmip6[i])
+        
+        self.chirps = np.array(self.chirps2)
+        self.cmip6 = np.array(self.cmip62)
+        
         # find mean and std
         self.chirps_mean = self.chirps.mean()
         self.chirps_std = self.chirps.std()
