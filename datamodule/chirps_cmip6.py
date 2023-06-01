@@ -67,7 +67,7 @@ class ChirpsCmip6(torch.utils.data.Dataset):
         cmip6 = self.cmip6[index]
         cmip6 = self.transform_cmip6(cmip6)
 
-        return chirps, cmip6
+        return cmip6.to(torch.float32), chirps.to(torch.float32)
 
 
 class ChirpsCmip6DataModule(pl.LightningDataModule):
