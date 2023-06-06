@@ -2,6 +2,7 @@ from typing import List
 import xarray as xr
 import numpy as np
 import argparse
+from rasterio.enums import Resampling
 
 def prepare_data(data_source: str, data_dir: str, time_init: str, time_end: str, bbox: List[float]):
     """Prepare CMIP6 data for the given time period and bounding box.
@@ -25,11 +26,26 @@ def prepare_data(data_source: str, data_dir: str, time_init: str, time_end: str,
         data = data.sel(time=slice(time_init, time_end), lat=slice(bbox[0], bbox[2]), lon=slice(bbox[1], bbox[3]))
         data = data.rename({'lat': 'latitude', 'lon': 'longitude'})
 
-    elif data_source == "chirps":
+    elif data_source == "chirps" or data_source == "low_chirps":
         data = xr.open_dataset(data_dir)
         data = data.sel(time=slice(time_init, time_end), latitude=slice(bbox[0], bbox[2]), longitude=slice(bbox[1], bbox[3]))
         data = data.rename({'precip': 'pr'})
 
+        if data_source == "low_chirps":
+            data = data.rio.write_crs("EPSG:4326")
+            
+            upscale_factor = 5
+
+            new_width = data.rio.width // upscale_factor
+            new_height = data.rio.height // upscale_factor
+
+            data = data.rio.reproject(
+                data.rio.crs,
+                shape=(new_height, new_width),
+                resampling=Resampling.average,
+            )
+            data = data.rename({'y': 'latitude', 'x': 'longitude'})
+    
     return data
 
 def slicing(data: xr.Dataset, size: int):
@@ -42,7 +58,6 @@ def slicing(data: xr.Dataset, size: int):
     Returns:
         data_slices (List[float, float]): List of slices.
     """
-    data = data.chunk({'latitude': size, 'longitude': size})
     data_slices = []
     for year in range(0, len(data['time'])):
         for latitude in range(0, len(data['latitude']), size):
@@ -55,11 +70,19 @@ def main(data_dir: str, time_init: str, time_end: str, bbox: List[float], size: 
     print('PREPARING CMIP6 DATA -------')
     cmip6 = prepare_data(data_source="cmip6", data_dir=f"{data_dir}/CNRM-CMIP6",
                           time_init=time_init, time_end=time_end, bbox=bbox)
+
+    print('PREPARING LOW RESOLUTION CHIRPS DATA')
+    low_chirps = prepare_data(data_source="low_chirps", data_dir=f"{data_dir}/CHIRPS/chirps-v2.0.monthly.nc",
+                          time_init=time_init, time_end=time_end, bbox=bbox)
     
     print('PREPARING CHIRPS DATA -------')
     chirps = prepare_data(data_source="chirps", data_dir=f"{data_dir}/CHIRPS/chirps-v2.0.monthly.nc",
                           time_init=time_init, time_end=time_end, bbox=bbox) 
     ratio = len(chirps.longitude) / len(cmip6.longitude)
+
+    print('SLICING LOW RESOLUTION CHIRPS DATA -------')
+    np_low_chirps = slicing(low_chirps, size)
+    np.save(f'{data_dir_save}/{type}_low_chirps.npy', np_low_chirps)
 
     print('SLICING CHIRPS DATA -------')
     np_chirps = slicing(chirps, int(size * ratio))
