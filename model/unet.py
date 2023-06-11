@@ -119,7 +119,7 @@ class UNet(nn.Module):
         dec1 = torch.cat((dec1, enc1), dim=1)
         dec1 = self.decoder1(dec1)
 
-        return torch.nn.Identity(dec1)
+        return torch.nn.ReLU()(dec1)
 
     @staticmethod
     def _block(in_channels, features, name):

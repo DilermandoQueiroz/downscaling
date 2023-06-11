@@ -3,6 +3,8 @@
 script/
 .DS_Store
 *test*
+lightning_logs*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
