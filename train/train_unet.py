@@ -12,10 +12,7 @@ def main():
 
     # 3. Create a trainer
     trainer = pl.Trainer(
-        gpus=1,
         max_epochs=50,
-        progress_bar_refresh_rate=20,
-        log_every_n_steps=1,
         logger=pl.loggers.TensorBoardLogger('logs/', name='unet')
     )
 

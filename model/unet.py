@@ -98,6 +98,8 @@ class UNet(nn.Module):
             in_channels=features, out_channels=out_channels, kernel_size=1
         )
 
+        self.relu = nn.ReLU()
+
     def forward(self, x):
         enc1 = self.encoder1(x)
         enc2 = self.encoder2(self.pool1(enc1))
@@ -118,8 +120,8 @@ class UNet(nn.Module):
         dec1 = self.upconv1(dec2)
         dec1 = torch.cat((dec1, enc1), dim=1)
         dec1 = self.decoder1(dec1)
-
-        return torch.nn.ReLU()(dec1)
+        out = self.conv(dec1)
+        return self.relu(out)
 
     @staticmethod
     def _block(in_channels, features, name):
