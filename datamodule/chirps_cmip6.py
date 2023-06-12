@@ -35,14 +35,6 @@ class Chirps(torch.utils.data.Dataset):
         self.chirps_mean = self.chirps.mean()
         self.chirps_std = self.chirps.std()
 
-        self.transforms_chirps = transforms.Compose([
-            # transforms.ToTensor(),
-            # transforms.Pad(24),
-            # transforms.RandomCrop(self.image_size),
-            # transforms.RandomHorizontalFlip(),
-            transforms.Normalize(mean=[self.chirps_mean], std=[self.chirps_std])
-        ])
-
     def __len__(self):
         """Length of the dataset.
         """
@@ -54,11 +46,10 @@ class Chirps(torch.utils.data.Dataset):
         chirps = self.chirps[index]
         chirps = torch.tensor(chirps).unsqueeze(0)
         
-        chirps = self.transforms_chirps(chirps)
+        chirps = chirps - self.chirps_mean / self.chirps_std
 
         chirps_low = transforms.Resize((32, 32))(chirps)
         chirps_low = transforms.Resize((160, 160))(chirps_low)
-
 
         # chirps_low = transforms.functional.resize(deepcopy(chirps), (32, 32))[None]
         # chirps_low = torch.nn.functional.interpolate(chirps_low, scale_factor=5, mode='bilinear')
