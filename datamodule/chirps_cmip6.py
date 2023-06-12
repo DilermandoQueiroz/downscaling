@@ -32,8 +32,12 @@ class Chirps(torch.utils.data.Dataset):
         self.chirps = np.array([image for image in self.chirps if image.sum() != 0])
 
         # find mean and std
-        self.chirps_mean = self.chirps.mean()
-        self.chirps_std = self.chirps.std()
+        self.mean = self.chirps.mean()
+        self.std = self.chirps.std()
+        self.min = self.chirps.min()
+        self.max = self.chirps.max()
+
+        self.chirps = (self.chirps - self.min) / (self.max - self.min) 
 
     def __len__(self):
         """Length of the dataset.
@@ -45,8 +49,6 @@ class Chirps(torch.utils.data.Dataset):
         """
         chirps = self.chirps[index]
         chirps = torch.tensor(chirps).unsqueeze(0)
-        
-        chirps = chirps - self.chirps_mean / self.chirps_std
 
         chirps_low = transforms.Resize((32, 32))(chirps)
         chirps_low = transforms.Resize((160, 160))(chirps_low)
