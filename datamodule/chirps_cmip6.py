@@ -53,9 +53,6 @@ class Chirps(torch.utils.data.Dataset):
         chirps_low = transforms.Resize((32, 32))(chirps)
         chirps_low = transforms.Resize((160, 160))(chirps_low)
 
-        # chirps_low = transforms.functional.resize(deepcopy(chirps), (32, 32))[None]
-        # chirps_low = torch.nn.functional.interpolate(chirps_low, scale_factor=5, mode='bilinear')
-
         return chirps_low.to(torch.float32), chirps.to(torch.float32)
 
 
@@ -78,7 +75,7 @@ class ChirpsCmip6(torch.utils.data.Dataset):
             self.chirps = np.load(f'{data_dir}/test_chirps.npy')
         else:
             raise ValueError(f'Invalid type: {type} (must be train, val or test)')
-
+        
         self.chirps[np.isnan(self.chirps)] = 0
         self.cmip6[np.isnan(self.cmip6)] = 0
 
@@ -92,22 +89,15 @@ class ChirpsCmip6(torch.utils.data.Dataset):
         
         self.chirps = np.array(self.chirps2)
         self.cmip6 = np.array(self.cmip62)
-        
+
         # find mean and std
-        self.chirps_mean = self.chirps.mean()
-        self.chirps_std = self.chirps.std()
-        self.cmip6_mean = self.cmip6.mean()
-        self.cmip6_std = self.cmip6.std()
+        self.chirps_max = self.chirps.max()
+        self.chirps_min = self.chirps.min()
+        self.cmip6_max = self.cmip6.max()
+        self.cmip6_min = self.cmip6.min()
 
-        self.transform_chirps = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[self.chirps_mean], std=[self.chirps_std])
-        ])
-
-        self.transform_cmip6 = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[self.cmip6_mean], std=[self.cmip6_std])
-        ])
+        self.cmip6 = (self.cmip6 - self.chirps_min) / (self.chirps_max - self.chirps_min)
+        self.cmip6 = (self.cmip6 - self.cmip6_min) / (self.cmip6_max - self.cmip6_min)
 
 
     def __len__(self):
@@ -119,11 +109,14 @@ class ChirpsCmip6(torch.utils.data.Dataset):
         """Get item.
         """
         chirps = self.chirps[index]
-        chirps = self.transform_chirps(chirps)
-        cmip6 = self.cmip6[index]
-        cmip6 = self.transform_cmip6(cmip6)
+        chirps = torch.tensor(chirps).unsqueeze(0)
+        chirps_low = transforms.Resize((self.cmip6.shape[1], self.cmip6.shape[2]))(chirps)
 
-        return cmip6.to(torch.float32), chirps.to(torch.float32)
+        cmip6 = self.cmip6[index]
+        cmip6 = torch.tensor(cmip6).unsqueeze(0)
+        
+
+        return cmip6.to(torch.float32), chirps_low.to(torch.float32)
 
 
 class ChirpsDataModule(pl.LightningDataModule):
