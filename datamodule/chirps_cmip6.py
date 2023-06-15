@@ -8,7 +8,7 @@ class Chirps(torch.utils.data.Dataset):
     """Chirps dataset.
     """
 
-    def __init__(self, data_dir="dataset/high-low", type='train') -> None:
+    def __init__(self, data_dir="dataset/high-low", type='train', transform=True) -> None:
         super().__init__()
         self.data_dir = data_dir
         self.type = type
@@ -53,13 +53,26 @@ class Chirps(torch.utils.data.Dataset):
         chirps_low = transforms.Resize((32, 32))(chirps)
         chirps_low = transforms.Resize((160, 160))(chirps_low)
 
+        self.transforms = transforms.Compose([
+            transforms.Pad(8),
+            transforms.RandomCrop(160),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomVerticalFlip(),
+        ])
+
+        if transforms:
+            images = torch.cat((chirps_low, chirps), 0)
+            images = self.transforms(images)
+            chirps_low = images[0].unsqueeze(0)
+            chirps = images[1].unsqueeze(0)
+
         return chirps_low.to(torch.float32), chirps.to(torch.float32)
 
 
 class ChirpsCmip6(torch.utils.data.Dataset):
     """ChirpsCmip6 dataset.
     """
-    def __init__(self, data_dir="dataset/high-low", type='train') -> None:
+    def __init__(self, data_dir="dataset/high-low", type='train', transform=True) -> None:
         super().__init__()
         self.data_dir = data_dir
         self.type = type
@@ -99,6 +112,12 @@ class ChirpsCmip6(torch.utils.data.Dataset):
         self.cmip6 = (self.cmip6 - self.chirps_min) / (self.chirps_max - self.chirps_min)
         self.cmip6 = (self.cmip6 - self.cmip6_min) / (self.cmip6_max - self.cmip6_min)
 
+        self.transforms = transforms.Compose([
+            transforms.Pad(8),
+            transforms.RandomCrop(32),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomVerticalFlip(),
+        ])
 
     def __len__(self):
         """Length of the dataset.
@@ -115,6 +134,11 @@ class ChirpsCmip6(torch.utils.data.Dataset):
         cmip6 = self.cmip6[index]
         cmip6 = torch.tensor(cmip6).unsqueeze(0)
         
+        if transforms:
+            images = torch.cat((cmip6, chirps_low), 0)
+            images = self.transforms(images)
+            cmip6 = images[0].unsqueeze(0)
+            chirps_low = images[1].unsqueeze(0)
 
         return cmip6.to(torch.float32), chirps_low.to(torch.float32)
 
