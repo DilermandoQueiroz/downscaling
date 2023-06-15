@@ -170,10 +170,10 @@ class ChirpsDataModule(pl.LightningDataModule):
                 stage (str, optional): Stage. Defaults to None.
             """
             if stage == 'fit':
-                self.train_dataset = Chirps(data_dir=self.data_dir, type='train', transforms=self.transforms)
-                self.val_dataset = Chirps(data_dir=self.data_dir, type='val', transforms=False)
+                self.train_dataset = Chirps(data_dir=self.data_dir, type='train', transformations=self.transforms)
+                self.val_dataset = Chirps(data_dir=self.data_dir, type='val', transformations=False)
             if stage == 'test':
-                self.test_dataset = Chirps(data_dir=self.data_dir, type='test', transforms=False)
+                self.test_dataset = Chirps(data_dir=self.data_dir, type='test', transformations=False)
     
         def train_dataloader(self):
             """Train dataloader.
@@ -227,10 +227,10 @@ class ChirpsCmip6DataModule(pl.LightningDataModule):
             stage (str, optional): Stage. Defaults to None.
         """
         if stage == 'fit' or stage is None:
-            self.train_dataset = ChirpsCmip6(data_dir=self.data_dir, type='train', transforms=self.transforms)
-            self.val_dataset = ChirpsCmip6(data_dir=self.data_dir, type='val', transforms=False)
+            self.train_dataset = ChirpsCmip6(data_dir=self.data_dir, type='train', transformations=self.transforms)
+            self.val_dataset = ChirpsCmip6(data_dir=self.data_dir, type='val', transformations=False)
         if stage == 'test' or stage is None:
-            self.test_dataset = ChirpsCmip6(data_dir=self.data_dir, type='test', transforms=False)
+            self.test_dataset = ChirpsCmip6(data_dir=self.data_dir, type='test', transformations=False)
 
 
     def train_dataloader(self):
