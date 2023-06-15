@@ -4,6 +4,7 @@ script/
 .DS_Store
 *test*
 lightning_logs*
+logs
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
