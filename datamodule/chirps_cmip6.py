@@ -8,7 +8,7 @@ class Chirps(torch.utils.data.Dataset):
     """Chirps dataset.
     """
 
-    def __init__(self, data_dir="dataset/high-low", type='train', transform=True) -> None:
+    def __init__(self, data_dir="dataset/high-low", type='train', transforms=True) -> None:
         super().__init__()
         self.data_dir = data_dir
         self.type = type
@@ -37,7 +37,17 @@ class Chirps(torch.utils.data.Dataset):
         self.min = self.chirps.min()
         self.max = self.chirps.max()
 
-        self.chirps = (self.chirps - self.min) / (self.max - self.min) 
+        self.chirps = (self.chirps - self.min) / (self.max - self.min)
+
+        if transforms:
+            self.transforms = transforms.Compose([
+                transforms.Pad(8),
+                transforms.RandomCrop(160),
+                transforms.RandomHorizontalFlip(),
+                transforms.RandomVerticalFlip(),
+            ])
+        else:
+            self.transforms = False
 
     def __len__(self):
         """Length of the dataset.
@@ -53,14 +63,7 @@ class Chirps(torch.utils.data.Dataset):
         chirps_low = transforms.Resize((32, 32))(chirps)
         chirps_low = transforms.Resize((160, 160))(chirps_low)
 
-        self.transforms = transforms.Compose([
-            transforms.Pad(8),
-            transforms.RandomCrop(160),
-            transforms.RandomHorizontalFlip(),
-            transforms.RandomVerticalFlip(),
-        ])
-
-        if transforms:
+        if self.transforms:
             images = torch.cat((chirps_low, chirps), 0)
             images = self.transforms(images)
             chirps_low = images[0].unsqueeze(0)
@@ -72,7 +75,7 @@ class Chirps(torch.utils.data.Dataset):
 class ChirpsCmip6(torch.utils.data.Dataset):
     """ChirpsCmip6 dataset.
     """
-    def __init__(self, data_dir="dataset/high-low", type='train', transform=True) -> None:
+    def __init__(self, data_dir="dataset/high-low", type='train', transforms=True) -> None:
         super().__init__()
         self.data_dir = data_dir
         self.type = type
@@ -111,13 +114,16 @@ class ChirpsCmip6(torch.utils.data.Dataset):
 
         self.cmip6 = (self.cmip6 - self.chirps_min) / (self.chirps_max - self.chirps_min)
         self.cmip6 = (self.cmip6 - self.cmip6_min) / (self.cmip6_max - self.cmip6_min)
-
-        self.transforms = transforms.Compose([
-            transforms.Pad(8),
-            transforms.RandomCrop(32),
-            transforms.RandomHorizontalFlip(),
-            transforms.RandomVerticalFlip(),
-        ])
+        
+        if transforms:
+            self.transforms = transforms.Compose([
+                transforms.Pad(8),
+                transforms.RandomCrop(32),
+                transforms.RandomHorizontalFlip(),
+                transforms.RandomVerticalFlip(),
+            ])
+        else:
+            self.transforms = False
 
     def __len__(self):
         """Length of the dataset.
@@ -134,7 +140,7 @@ class ChirpsCmip6(torch.utils.data.Dataset):
         cmip6 = self.cmip6[index]
         cmip6 = torch.tensor(cmip6).unsqueeze(0)
         
-        if transforms:
+        if self.transforms:
             images = torch.cat((cmip6, chirps_low), 0)
             images = self.transforms(images)
             cmip6 = images[0].unsqueeze(0)
@@ -145,12 +151,12 @@ class ChirpsCmip6(torch.utils.data.Dataset):
 
 class ChirpsDataModule(pl.LightningDataModule):
     
-        def __init__(self, data_dir="dataset/high-low", batch_size=32) -> None:
+        def __init__(self, data_dir="dataset/high-low", batch_size=32, transforms=True) -> None:
     
             super().__init__()
-            
             self.data_dir = data_dir
             self.batch_size = batch_size
+            self.transforms = transforms
     
         def prepare_data(self):
             """Prepare data.
@@ -164,10 +170,10 @@ class ChirpsDataModule(pl.LightningDataModule):
                 stage (str, optional): Stage. Defaults to None.
             """
             if stage == 'fit':
-                self.train_dataset = Chirps(data_dir=self.data_dir, type='train')
-                self.val_dataset = Chirps(data_dir=self.data_dir, type='val')
+                self.train_dataset = Chirps(data_dir=self.data_dir, type='train', transforms=self.transforms)
+                self.val_dataset = Chirps(data_dir=self.data_dir, type='val', transforms=False)
             if stage == 'test':
-                self.test_dataset = Chirps(data_dir=self.data_dir, type='test')
+                self.test_dataset = Chirps(data_dir=self.data_dir, type='test', transforms=False)
     
         def train_dataloader(self):
             """Train dataloader.
@@ -201,12 +207,13 @@ class ChirpsDataModule(pl.LightningDataModule):
 
 class ChirpsCmip6DataModule(pl.LightningDataModule):
 
-    def __init__(self, data_dir="dataset/high-low", batch_size=32) -> None:
+    def __init__(self, data_dir="dataset/high-low", batch_size=32, transforms=True) -> None:
 
         super().__init__()
         
         self.data_dir = data_dir
         self.batch_size = batch_size
+        self.transforms = transforms
 
     def prepare_data(self):
         """Prepare data.
@@ -220,10 +227,10 @@ class ChirpsCmip6DataModule(pl.LightningDataModule):
             stage (str, optional): Stage. Defaults to None.
         """
         if stage == 'fit' or stage is None:
-            self.train_dataset = ChirpsCmip6(data_dir=self.data_dir, type='train')
-            self.val_dataset = ChirpsCmip6(data_dir=self.data_dir, type='val')
+            self.train_dataset = ChirpsCmip6(data_dir=self.data_dir, type='train', transforms=self.transforms)
+            self.val_dataset = ChirpsCmip6(data_dir=self.data_dir, type='val', transforms=False)
         if stage == 'test' or stage is None:
-            self.test_dataset = ChirpsCmip6(data_dir=self.data_dir, type='test')
+            self.test_dataset = ChirpsCmip6(data_dir=self.data_dir, type='test', transforms=False)
 
 
     def train_dataloader(self):
