@@ -8,7 +8,7 @@ class Chirps(torch.utils.data.Dataset):
     """Chirps dataset.
     """
 
-    def __init__(self, data_dir="dataset/high-low", type='train', transforms=True) -> None:
+    def __init__(self, data_dir="dataset/high-low", type='train', transformations=True) -> None:
         super().__init__()
         self.data_dir = data_dir
         self.type = type
@@ -39,7 +39,7 @@ class Chirps(torch.utils.data.Dataset):
 
         self.chirps = (self.chirps - self.min) / (self.max - self.min)
 
-        if transforms:
+        if transformations:
             self.transforms = transforms.Compose([
                 transforms.Pad(8),
                 transforms.RandomCrop(160),
@@ -75,7 +75,7 @@ class Chirps(torch.utils.data.Dataset):
 class ChirpsCmip6(torch.utils.data.Dataset):
     """ChirpsCmip6 dataset.
     """
-    def __init__(self, data_dir="dataset/high-low", type='train', transforms=True) -> None:
+    def __init__(self, data_dir="dataset/high-low", type='train', transformations=True) -> None:
         super().__init__()
         self.data_dir = data_dir
         self.type = type
@@ -115,7 +115,7 @@ class ChirpsCmip6(torch.utils.data.Dataset):
         self.cmip6 = (self.cmip6 - self.chirps_min) / (self.chirps_max - self.chirps_min)
         self.cmip6 = (self.cmip6 - self.cmip6_min) / (self.cmip6_max - self.cmip6_min)
         
-        if transforms:
+        if transformations:
             self.transforms = transforms.Compose([
                 transforms.Pad(8),
                 transforms.RandomCrop(32),
