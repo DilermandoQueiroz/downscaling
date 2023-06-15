@@ -1,7 +1,7 @@
 # Standard library
 from typing import Iterable
 
-from components.cnn_blocks import (
+from model.components.cnn_blocks import (
     DownBlock,
     Downsample,
     MiddleBlock,
