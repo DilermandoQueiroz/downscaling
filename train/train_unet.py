@@ -1,3 +1,8 @@
+import sys
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.getcwd(), '..')))
+
 import lightning.pytorch as pl
 from datamodule.chirps_cmip6 import ChirpsDataModule
 from model.unet import UnetModule
