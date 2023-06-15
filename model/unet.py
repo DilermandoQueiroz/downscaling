@@ -1,6 +1,5 @@
 import lightning.pytorch as pl
 import torch
-import torchvision
 from torch import nn
 
     
@@ -53,6 +52,23 @@ class UnetModule(pl.LightningModule):
         z = self(x)
         loss = self.loss(z, y)
         self.log('val_loss', loss)
+        
+        return loss
+
+    def test_step(self, batch, batch_idx):
+        """test step.
+
+        Args:
+            batch (tuple): Input and target batch.
+            batch_idx (int): Index of the batch.
+
+        Returns:
+            torch.Tensor: Loss value.
+        """
+        x, y = batch
+        z = self(x)
+        loss = self.loss(z, y)
+        self.log('test_loss', loss)
         
         return loss
     
