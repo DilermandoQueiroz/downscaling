@@ -8,11 +8,16 @@ class Chirps(torch.utils.data.Dataset):
     """Chirps dataset.
     """
 
-    def __init__(self, data_dir="dataset/high-low", type='train', transformations=True) -> None:
+    def __init__(self, data_dir="dataset/high-low", type='train', transformations=True, scale=5, crop=160) -> None:
         super().__init__()
         self.data_dir = data_dir
         self.type = type
-        
+        self.crop = crop
+        self.scale = scale
+
+        if crop % scale != 0:
+            raise ValueError(f'the scale need to be a factor of crop')
+
         if type == 'train':
             self.chirps = np.load(f'{data_dir}/train_chirps.npy')
         elif type == 'val':
@@ -24,6 +29,9 @@ class Chirps(torch.utils.data.Dataset):
         
 
         self.image_size = self.chirps.shape[1]
+
+        if crop > self.image_size:
+            raise f"The crop size {crop} cannot be largen the image size {self.image_size}"
 
         # Transform nan to zero
         self.chirps[np.isnan(self.chirps)] = 0
@@ -38,11 +46,18 @@ class Chirps(torch.utils.data.Dataset):
         self.max = self.chirps.max()
 
         self.chirps = (self.chirps - self.min) / (self.max - self.min)
-
-        if transformations:
+        
+        if crop < self.image_size:
+            self.transforms = transforms.Compose([
+                transforms.RandomCrop(crop),
+                transforms.RandomHorizontalFlip(),
+                transforms.RandomVerticalFlip(),
+            ])
+            
+        elif transformations and crop == self.image_size:
             self.transforms = transforms.Compose([
                 transforms.Pad(8),
-                transforms.RandomCrop(160),
+                transforms.RandomCrop(crop),
                 transforms.RandomHorizontalFlip(),
                 transforms.RandomVerticalFlip(),
             ])
@@ -59,9 +74,11 @@ class Chirps(torch.utils.data.Dataset):
         """
         chirps = self.chirps[index]
         chirps = torch.tensor(chirps).unsqueeze(0)
-
-        chirps_low = transforms.Resize((32, 32))(chirps)
-        chirps_low = transforms.Resize((160, 160))(chirps_low)
+        
+        new_size = int(self.image_size / self.scale)
+        
+        chirps_low = transforms.Resize((new_size, new_size), antialias=True)(chirps)
+        chirps_low = transforms.Resize((self.image_size, self.image_size), antialias=True)(chirps_low)
 
         if self.transforms:
             images = torch.cat((chirps_low, chirps), 0)
@@ -151,12 +168,14 @@ class ChirpsCmip6(torch.utils.data.Dataset):
 
 class ChirpsDataModule(pl.LightningDataModule):
     
-        def __init__(self, data_dir="dataset/high-low", batch_size=32, transforms=True) -> None:
+        def __init__(self, data_dir="dataset/high-low", batch_size=32, transforms=True, scale=5, crop=160) -> None:
     
             super().__init__()
             self.data_dir = data_dir
             self.batch_size = batch_size
             self.transforms = transforms
+            self.scale = scale
+            self.crop = crop
     
         def prepare_data(self):
             """Prepare data.
@@ -170,10 +189,13 @@ class ChirpsDataModule(pl.LightningDataModule):
                 stage (str, optional): Stage. Defaults to None.
             """
             if stage == 'fit':
-                self.train_dataset = Chirps(data_dir=self.data_dir, type='train', transformations=self.transforms)
-                self.val_dataset = Chirps(data_dir=self.data_dir, type='val', transformations=False)
+                self.train_dataset = Chirps(data_dir=self.data_dir, type='train', transformations=self.transforms,
+                                            scale=self.scale, crop=self.crop)
+                self.val_dataset = Chirps(data_dir=self.data_dir, type='val', transformations=False,
+                                            scale=self.scale, crop=self.crop)
             if stage == 'test':
-                self.test_dataset = Chirps(data_dir=self.data_dir, type='test', transformations=False)
+                self.test_dataset = Chirps(data_dir=self.data_dir, type='test', transformations=False,
+                                            scale=self.scale, crop=self.crop)
     
         def train_dataloader(self):
             """Train dataloader.
