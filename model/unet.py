@@ -69,6 +69,7 @@ class UnetModule(pl.LightningModule):
         z = self(x)
         loss = self.loss(z, y)
         self.log('test_loss', loss)
+        self.log('linear_loss', self.loss(x, y))
         
         return loss
     
