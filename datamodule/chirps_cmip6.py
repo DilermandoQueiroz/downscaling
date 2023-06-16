@@ -112,7 +112,7 @@ class ChirpsCmip6(torch.utils.data.Dataset):
         self.cmip6_max = self.cmip6.max()
         self.cmip6_min = self.cmip6.min()
 
-        self.cmip6 = (self.cmip6 - self.chirps_min) / (self.chirps_max - self.chirps_min)
+        self.chirps = (self.chirps - self.chirps_min) / (self.chirps_max - self.chirps_min)
         self.cmip6 = (self.cmip6 - self.cmip6_min) / (self.cmip6_max - self.cmip6_min)
         
         if transformations:
@@ -265,5 +265,3 @@ class ChirpsCmip6DataModule(pl.LightningDataModule):
             num_workers=4,
             pin_memory=True
         )
-
-
