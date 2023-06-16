@@ -73,7 +73,7 @@ class UnetModule(pl.LightningModule):
         return loss
     
     def configure_optimizers(self):
-        optimizer = torch.optim.SGD(self.parameters(), lr=1e-3)
+        optimizer = torch.optim.AdamW(self.parameters(), lr=1e-5, weight_decay=1e-5)
         return optimizer
 
 class UNet(nn.Module):

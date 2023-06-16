@@ -76,11 +76,12 @@ class UnetModule(pl.LightningModule):
         z = self(x)
         loss = self.loss(z, y)
         self.log('test_loss', loss)
+        self.log('linear_loss', self.loss(x, y))
         
         return loss
     
     def configure_optimizers(self):
-        optimizer = torch.optim.SGD(self.parameters(), lr=1e-3)
+        optimizer = torch.optim.AdamW(self.parameters(), lr=1e-4, weight_decay=1e-5)
         return optimizer
 
 
@@ -91,7 +92,7 @@ class Unet(nn.Module):
         out_channels,
         history=1,
         hidden_channels=64,
-        activation="leaky",
+        activation="relu",
         norm: bool = True,
         dropout: float = 0.1,
         ch_mults: Iterable[int] = (1, 2, 2, 4),
