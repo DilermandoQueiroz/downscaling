@@ -8,12 +8,13 @@ class Chirps(torch.utils.data.Dataset):
     """Chirps dataset.
     """
 
-    def __init__(self, data_dir="dataset/high-low", type='train', transformations=True, scale=5, crop=160) -> None:
+    def __init__(self, data_dir="dataset/high-low", type='train', transformations=False, scale=5, crop=160) -> None:
         super().__init__()
         self.data_dir = data_dir
         self.type = type
         self.crop = crop
         self.scale = scale
+        self.transformations = transformations
 
         if crop % scale != 0:
             raise ValueError(f'the scale need to be a factor of crop')
@@ -48,21 +49,19 @@ class Chirps(torch.utils.data.Dataset):
         self.chirps = (self.chirps - self.min) / (self.max - self.min)
         
         if crop < self.image_size:
-            self.transforms = transforms.Compose([
+            self.transform = transforms.Compose([
                 transforms.RandomCrop(crop),
                 transforms.RandomHorizontalFlip(),
                 transforms.RandomVerticalFlip(),
             ])
             
-        elif transformations and crop == self.image_size:
-            self.transforms = transforms.Compose([
+        elif self.transformations and crop == self.image_size:
+            self.transform = transforms.Compose([
                 transforms.Pad(8),
                 transforms.RandomCrop(crop),
                 transforms.RandomHorizontalFlip(),
                 transforms.RandomVerticalFlip(),
             ])
-        else:
-            self.transforms = False
 
     def __len__(self):
         """Length of the dataset.
@@ -80,19 +79,18 @@ class Chirps(torch.utils.data.Dataset):
         chirps_low = transforms.Resize((new_size, new_size), antialias=True)(chirps)
         chirps_low = transforms.Resize((self.image_size, self.image_size), antialias=True)(chirps_low)
 
-        if self.transforms:
-            images = torch.cat((chirps_low, chirps), 0)
-            images = self.transforms(images)
-            chirps_low = images[0].unsqueeze(0)
-            chirps = images[1].unsqueeze(0)
+        if self.transformations:
+            images = torch.cat((chirps_low.unsqueeze(0), chirps.unsqueeze(0)), 0)
+            transformed_images = self.transform(images)
+            chirps_low = transformed_images[0]
+            chirps = transformed_images[1]
 
         return chirps_low.to(torch.float32), chirps.to(torch.float32)
-
 
 class ChirpsCmip6(torch.utils.data.Dataset):
     """ChirpsCmip6 dataset.
     """
-    def __init__(self, data_dir="dataset/high-low", type='train', transformations=True) -> None:
+    def __init__(self, data_dir="dataset/high-low", type='train', transformations=False) -> None:
         super().__init__()
         self.data_dir = data_dir
         self.type = type
@@ -168,7 +166,7 @@ class ChirpsCmip6(torch.utils.data.Dataset):
 
 class ChirpsDataModule(pl.LightningDataModule):
     
-        def __init__(self, data_dir="dataset/high-low", batch_size=32, transforms=True, scale=5, crop=160) -> None:
+        def __init__(self, data_dir="dataset/high-low", batch_size=32, transforms=False, scale=5, crop=160) -> None:
     
             super().__init__()
             self.data_dir = data_dir
@@ -229,7 +227,7 @@ class ChirpsDataModule(pl.LightningDataModule):
 
 class ChirpsCmip6DataModule(pl.LightningDataModule):
 
-    def __init__(self, data_dir="dataset/high-low", batch_size=32, transforms=True) -> None:
+    def __init__(self, data_dir="dataset/high-low", batch_size=32, transforms=False) -> None:
 
         super().__init__()
         
