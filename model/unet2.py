@@ -10,6 +10,8 @@ from model.components.cnn_blocks import (
     Upsample,
 )
 
+from model.components.perceptual_loss import VGGPerceptualLoss
+
 # Third party
 import torch
 from torch import nn
@@ -17,13 +19,18 @@ import lightning.pytorch as pl
 
 class UnetModule(pl.LightningModule):
 
-    def __init__(self):
+    def __init__(self, loss='mse'):
         super().__init__()
         self.save_hyperparameters()
         
         self.model = Unet(in_channels=1, out_channels=1)
         
-        self.loss = torch.nn.MSELoss()
+        if loss == 'mse':
+            self.loss = torch.nn.MSELoss()
+        elif loss == 'l1':
+            self.loss = torch.nn.L1Loss()
+        elif loss == 'perceptual':
+            self.loss = VGGPerceptualLoss()
 
     def forward(self, x):
         return self.model(x)

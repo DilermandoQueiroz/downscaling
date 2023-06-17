@@ -2,6 +2,7 @@ import lightning.pytorch as pl
 import torch
 from torch import nn
 
+from model.components.perceptual_loss import VGGPerceptualLoss
     
 from collections import OrderedDict
 
@@ -10,13 +11,20 @@ import torch.nn as nn
 
 class UnetModule(pl.LightningModule):
 
-    def __init__(self):
+    def __init__(self, loss='mse'):
         super().__init__()
         self.save_hyperparameters()
         
         self.model = UNet(in_channels=1, out_channels=1, init_features=32)
         
         self.loss = torch.nn.MSELoss()
+
+        if loss == 'mse':
+            self.loss = torch.nn.MSELoss()
+        elif loss == 'l1':
+            self.loss = torch.nn.L1Loss()
+        elif loss == 'perceptual':
+            self.loss = VGGPerceptualLoss()
 
     def forward(self, x):
         return self.model(x)
