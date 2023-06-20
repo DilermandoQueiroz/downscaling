@@ -3,7 +3,58 @@ import torch
 import numpy as np
 from torchvision import transforms
 from copy import deepcopy
+import random
 
+class BlurChirps(torch.utils.data.Dataset):
+    """ BlurChirps dataset.
+    """
+
+    def __init__(self, data_dir="dataset/high-low", type='train', transformations=False, scale=5, crop=160) -> None:
+        super().__init__()
+        self.data_dir = data_dir
+        self.type = type
+
+        if type == 'train':
+            self.chirps = np.load(f'{data_dir}/train_chirps.npy')
+        elif type == 'val':
+            self.chirps = np.load(f'{data_dir}/val_chirps.npy')
+        elif type == 'test':
+            self.chirps = np.load(f'{data_dir}/test_chirps.npy')
+        else:
+            raise ValueError(f'Invalid type: {type} (must be train, val or test)')
+        
+        # Transform nan to zero
+        self.chirps[np.isnan(self.chirps)] = 0
+        
+        # Remove images that are all zero
+        self.chirps = np.array([image for image in self.chirps if image.sum() != 0])
+
+        # find mean and std
+        self.mean = self.chirps.mean()
+        self.std = self.chirps.std()
+        self.min = self.chirps.min()
+        self.max = self.chirps.max()
+
+        self.chirps = (self.chirps - self.min) / (self.max - self.min)
+
+    def __len__(self):
+        """Length of the dataset.
+        """
+        return len(self.chirps)
+    
+    def __getitem__(self, index):
+        """Get item.
+        """
+        chirps = self.chirps[index]
+        chirps = torch.tensor(chirps).unsqueeze(0)
+        chirps = transforms.Resize((224, 224), antialias=True)(chirps)
+        
+        if random.random() < 0.5:
+            transform = transforms.GaussianBlur(3, sigma=(0.1, 2.0))
+            return transform(chirps), torch.tensor(0, dtype=torch.long)
+        
+        return chirps, torch.tensor(1, dtype=torch.long)
+    
 class Chirps(torch.utils.data.Dataset):
     """Chirps dataset.
     """
@@ -285,3 +336,58 @@ class ChirpsCmip6DataModule(pl.LightningDataModule):
             num_workers=4,
             pin_memory=True
         )
+    
+class BlurChirpsDataModule(pl.LightningDataModule):
+    
+        def __init__(self, data_dir="dataset/high-low", batch_size=32) -> None:
+    
+            super().__init__()
+            self.data_dir = data_dir
+            self.batch_size = batch_size
+    
+        def prepare_data(self):
+            """Prepare data.
+            """
+            ...
+    
+        def setup(self, stage=None):
+            """Setup data.
+    
+            Args:
+                stage (str, optional): Stage. Defaults to None.
+            """
+            if stage == 'fit':
+                self.train_dataset = BlurChirps(data_dir=self.data_dir, type='train')
+                self.val_dataset = BlurChirps(data_dir=self.data_dir, type='val')
+            if stage == 'test':
+                self.test_dataset = BlurChirps(data_dir=self.data_dir, type='test')
+    
+        def train_dataloader(self):
+            """Train dataloader.
+            """
+            return torch.utils.data.DataLoader(
+                self.train_dataset,
+                batch_size=self.batch_size,
+                shuffle=True,
+                num_workers=8
+            )
+    
+        def val_dataloader(self):
+            """Validation dataloader.
+            """
+            return torch.utils.data.DataLoader(
+                self.val_dataset,
+                batch_size=self.batch_size,
+                shuffle=False,
+                num_workers=8
+            )
+    
+        def test_dataloader(self):
+            """Test dataloader.
+            """
+            return torch.utils.data.DataLoader(
+                self.test_dataset,
+                batch_size=self.batch_size,
+                shuffle=False,
+                num_workers=8
+            )
