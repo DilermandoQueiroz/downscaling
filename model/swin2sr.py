@@ -18,6 +18,7 @@ class Swin2SRLight(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters()
         self.model = Swin2SR(**kwargs)
+        self.loss = torch.nn.L1Loss()
         # init a pretrained resnet
 
     def forward(self, x):
@@ -35,7 +36,7 @@ class Swin2SRLight(pl.LightningModule):
         """
         x, y = batch
         z = self(x)
-        loss = torch.nn.MSELoss()(z, y)
+        loss = self.loss(z, y)
         self.log('train_loss', loss)    
         
         return loss
@@ -52,7 +53,7 @@ class Swin2SRLight(pl.LightningModule):
         """
         x, y = batch
         z = self(x)
-        loss = torch.nn.MSELoss()(z, y)
+        loss = self.loss(z, y)
         self.log('val_loss', loss)
         
         return loss
@@ -75,7 +76,7 @@ class Swin2SRLight(pl.LightningModule):
         return loss
     
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.parameters(), lr=1e-3)
+        optimizer = torch.optim.AdamW(self.parameters(), lr=1e-5)
         return optimizer
 
 class Mlp(nn.Module):
