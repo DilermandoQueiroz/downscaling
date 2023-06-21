@@ -10,7 +10,7 @@ import torch.nn as nn
 
 class VggModule(pl.LightningModule):
 
-    def __init__(self, loss='mse', num_classes=2):
+    def __init__(self, num_classes=1):
         super().__init__()
         self.save_hyperparameters()
         
@@ -35,12 +35,11 @@ class VggModule(pl.LightningModule):
         """
         x, y = batch
         z = self.model(x)
-        y = y.unsqueeze(1).float()
-        loss = self.loss(z, y)
+        loss = self.loss(z, y.unsqueeze(1).float())
+        self.log('train_loss', loss, on_step=True, on_epoch=True, logger=True)
 
         preds = torch.argmax(z, dim=1)
         acc = self.accuracy(preds, y)
-        self.log('train_loss', loss, on_step=True, on_epoch=True, logger=True)
         self.log('train_acc', acc, on_step=True, on_epoch=True, logger=True)
 
         return loss
@@ -59,12 +58,11 @@ class VggModule(pl.LightningModule):
         """
         x, y = batch
         z = self.model(x)
-        y = y.unsqueeze(1).float()
-        loss = self.loss(z, y)
+        loss = self.loss(z, y.unsqueeze(1).float())
+        self.log('val_loss', loss)
 
         preds = torch.argmax(z, dim=1)
         acc = self.accuracy(preds, y)
-        self.log('val_loss', loss)
         self.log('val_acc', acc)
         
         return loss
@@ -81,13 +79,11 @@ class VggModule(pl.LightningModule):
         """
         x, y = batch
         z = self.model(x)
-        y = y.unsqueeze(1).float()
-        loss = self.loss(z, y)
+        loss = self.loss(z,y.unsqueeze(1).float())
         self.log('test_loss', loss)
 
         preds = torch.argmax(z, dim=1)
         acc = self.accuracy(preds, y)
-        self.log('test_loss', loss)
         self.log('test_acc', acc)
         
         return loss
