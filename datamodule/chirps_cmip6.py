@@ -108,7 +108,7 @@ class Chirps(torch.utils.data.Dataset):
             
         elif self.transformations and crop == self.image_size:
             self.transform = transforms.Compose([
-                transforms.Pad(8),
+                transforms.Pad(32),
                 transforms.RandomCrop(crop),
                 transforms.RandomHorizontalFlip(),
                 transforms.RandomVerticalFlip(),

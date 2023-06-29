@@ -10,74 +10,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
+from model.module import 
 
-
-class Swin2SRLight(pl.LightningModule):
-
-    def __init__(self, **kwargs):
-        super().__init__()
-        self.save_hyperparameters()
-        self.model = Swin2SR(**kwargs)
-        self.loss = torch.nn.L1Loss()
-        # init a pretrained resnet
-
-    def forward(self, x):
-        return self.model(x)
-    
-    def training_step(self, batch, batch_idx):
-        """Training step.
-
-        Args:
-            batch (tuple): Input and target batch.
-            batch_idx (int): Index of the batch.
-
-        Returns:
-            torch.Tensor: Loss value.
-        """
-        x, y = batch
-        z = self(x)
-        loss = self.loss(z, y)
-        self.log('train_loss', loss)    
-        
-        return loss
-
-    def validation_step(self, batch, batch_idx):
-        """Validation step.
-
-        Args:
-            batch (tuple): Input and target batch.
-            batch_idx (int): Index of the batch.
-
-        Returns:
-            torch.Tensor: Loss value.
-        """
-        x, y = batch
-        z = self(x)
-        loss = self.loss(z, y)
-        self.log('val_loss', loss)
-        
-        return loss
-    
-    def test_step(self, batch, batch_idx):
-        """Test step.
-
-        Args:
-            batch (tuple): Input and target batch.
-            batch_idx (int): Index of the batch.
-
-        Returns:
-            torch.Tensor: Loss value.
-        """
-        x, y = batch
-        z = self(x)
-        loss = torch.nn.MSELoss()(z, y)
-        self.log('test_loss', loss)
-        
-        return loss
-    
-    def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.parameters(), lr=1e-5)
-        return optimizer
+Swin2SRModule = ModelModule(
+    Swin2SR(upscale=5, img_size=(32, 32), in_chans=1,
+            window_size=8, img_range=1., depths=[6, 6, 6, 6],
+            embed_dim=60, num_heads=[6, 6, 6, 6], mlp_ratio=2, upsampler='pixelshuffledirect')    
+)
 
 class Mlp(nn.Module):
     def __init__(self, in_features, hidden_features=None, out_features=None, act_layer=nn.GELU, drop=0.):
@@ -1068,17 +1007,3 @@ class Swin2SR(nn.Module):
         return flops
 
 
-if __name__ == '__main__':
-    upscale = 4
-    window_size = 8
-    height = (1024 // upscale // window_size + 1) * window_size
-    width = (720 // upscale // window_size + 1) * window_size
-    model = Swin2SR(upscale=2, img_size=(height, width),
-                   window_size=window_size, img_range=1., depths=[6, 6, 6, 6],
-                   embed_dim=60, num_heads=[6, 6, 6, 6], mlp_ratio=2, upsampler='pixelshuffledirect')
-    print(model)
-    print(height, width, model.flops() / 1e9)
-
-    x = torch.randn((1, 3, height, width))
-    x = model(x)
-    print(x.shape)
