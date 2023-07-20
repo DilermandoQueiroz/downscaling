@@ -68,7 +68,9 @@ class VisionTransfomerModule(pl.LightningModule):
         x, y = batch
         z = self(x)
         loss = torch.nn.MSELoss()(z, y)
-        self.log('test_loss', loss)
+        loss_data = torch.nn.MSELoss()(x, y)
+        self.log('test_loss_mse_model', loss)
+        self.log('test_loss_mse_data', loss_data)
         
         return loss
     
