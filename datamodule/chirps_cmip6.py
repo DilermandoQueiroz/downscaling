@@ -128,7 +128,7 @@ class Chirps(torch.utils.data.Dataset):
         new_size = int(self.image_size / self.scale)
         
         chirps_low = transforms.Resize((new_size, new_size), antialias=True)(chirps)
-        chirps_low = transforms.Resize((self.image_size, self.image_size), antialias=True)(chirps_low)
+        # chirps_low = transforms.Resize((self.image_size, self.image_size), antialias=True)(chirps_low)
 
         if self.transformations:
             images = torch.cat((chirps_low.unsqueeze(0), chirps.unsqueeze(0)), 0)
