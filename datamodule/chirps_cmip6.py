@@ -5,37 +5,75 @@ from torchvision import transforms
 from copy import deepcopy
 import random
 
-class BlurChirps(torch.utils.data.Dataset):
-    """ BlurChirps dataset.
-    """
+class Geospatial(torch.utils.data.Dataset):
 
-    def __init__(self, data_dir="dataset/high-low", type='train', transformations=False, scale=5, crop=160) -> None:
-        super().__init__()
+    def __init__(self, data_dir, type):
         self.data_dir = data_dir
         self.type = type
 
         if type == 'train':
+            self.cmip6 = np.load(f'{data_dir}/train_cmip6.npy')
             self.chirps = np.load(f'{data_dir}/train_chirps.npy')
         elif type == 'val':
+            self.cmip6 = np.load(f'{data_dir}/val_cmip6.npy')
             self.chirps = np.load(f'{data_dir}/val_chirps.npy')
-        elif type == 'test':
+        elif type == 'test' or 'eval':
+            self.cmip6 = np.load(f'{data_dir}/test_cmip6.npy')
             self.chirps = np.load(f'{data_dir}/test_chirps.npy')
         else:
             raise ValueError(f'Invalid type: {type} (must be train, val or test)')
+
+        self.chirps[np.isnan(self.chirps)] = 0
+        self.cmip6[np.isnan(self.cmip6)] = 0
+
+        # find mean and std
+        self.chirps_max = self.chirps.max()
+        self.chirps_min = self.chirps.min()
+        self.cmip6_max = self.cmip6.max()
+        self.cmip6_min = self.cmip6.min()
+
+    @staticmethod
+    def reconstruct_image(images: np.array, ratio = 5):
+        num_images, _, _ = images.shape
+        images = images.reshape(num_images//(ratio*ratio), ratio*ratio, images.shape[1], images.shape[1])
+        _, num_pieces, piece_size, _ = images.shape
+
+        pieces_axis = int(np.sqrt(num_pieces))
+        
+        reconstruct_image_size = pieces_axis * piece_size
+        reconstruct_images = []
+        for image in images:
+            reconstructed_image = np.zeros((reconstruct_image_size, reconstruct_image_size))
+
+            for image in images:
+                i = 0
+                for k in range(pieces_axis):
+                    for j in range(pieces_axis):
+                        reconstruct_init_hor = piece_size * k
+                        reconstruct_end_hor  = piece_size * k + piece_size
+                        reconstruct_init_vert = piece_size * j
+                        reconstruct_end_vert = piece_size * j + piece_size
+                        reconstructed_image[reconstruct_init_hor:reconstruct_end_hor, reconstruct_init_vert:reconstruct_end_vert] = image[i]
+                        i += 1
+
+
+            reconstruct_images.append(np.flip(reconstructed_image, axis=0))
+
+        return np.array(reconstruct_images)
+
+class BlurChirps(Geospatial):
+    """ BlurChirps dataset.
+    """
+
+    def __init__(self, data_dir="dataset/high-low", type='train', transformations=False, scale=5, crop=160) -> None:
+        super().__init__(data_dir, type)
         
         # Transform nan to zero
         self.chirps[np.isnan(self.chirps)] = 0
         
         # Remove images that are all zero
         self.chirps = np.array([image for image in self.chirps if image.sum() != 0])
-
-        # find mean and std
-        self.mean = self.chirps.mean()
-        self.std = self.chirps.std()
-        self.min = self.chirps.min()
-        self.max = self.chirps.max()
-
-        self.chirps = (self.chirps - self.min) / (self.max - self.min)
+        self.chirps = (self.chirps - self.chirps_min) / (self.chirps_max - self.chirps_min)
 
     def __len__(self):
         """Length of the dataset.
@@ -55,49 +93,29 @@ class BlurChirps(torch.utils.data.Dataset):
         
         return chirps, torch.tensor(1, dtype=torch.long)
     
-class Chirps(torch.utils.data.Dataset):
+class Chirps(Geospatial):
     """Chirps dataset.
     """
 
     def __init__(self, data_dir="dataset/high-low", type='train', transformations=False, scale=5, crop=160) -> None:
-        super().__init__()
-        self.data_dir = data_dir
-        self.type = type
+        super().__init__(data_dir, type)
         self.crop = crop
         self.scale = scale
         self.transformations = transformations
 
         if crop % scale != 0:
             raise ValueError(f'the scale need to be a factor of crop')
-
-        if type == 'train':
-            self.chirps = np.load(f'{data_dir}/train_chirps.npy')
-        elif type == 'val':
-            self.chirps = np.load(f'{data_dir}/val_chirps.npy')
-        elif type == 'test':
-            self.chirps = np.load(f'{data_dir}/test_chirps.npy')
-        else:
-            raise ValueError(f'Invalid type: {type} (must be train, val or test)')
-        
-
+    
         self.image_size = self.chirps.shape[1]
 
         if crop > self.image_size:
             raise f"The crop size {crop} cannot be largen the image size {self.image_size}"
-
-        # Transform nan to zero
-        self.chirps[np.isnan(self.chirps)] = 0
         
-        # Remove images that are all zero
-        self.chirps = np.array([image for image in self.chirps if image.sum() != 0])
+        if type != 'eval':
+            # Remove images that are all zero
+            self.chirps = np.array([image for image in self.chirps if image.sum() != 0])
 
-        # find mean and std
-        self.mean = self.chirps.mean()
-        self.std = self.chirps.std()
-        self.min = self.chirps.min()
-        self.max = self.chirps.max()
-
-        self.chirps = (self.chirps - self.min) / (self.max - self.min)
+        self.chirps = (self.chirps - self.chirps_min) / (self.chirps_max - self.chirps_min)
         
         if crop < self.image_size:
             self.transform = transforms.Compose([
@@ -138,45 +156,23 @@ class Chirps(torch.utils.data.Dataset):
 
         return chirps_low.to(torch.float32), chirps.to(torch.float32)
 
-class ChirpsCmip6(torch.utils.data.Dataset):
+class ChirpsCmip6(Geospatial):
     """ChirpsCmip6 dataset.
     """
     def __init__(self, data_dir="dataset/high-low", type='train', transformations=False) -> None:
-        super().__init__()
-        self.data_dir = data_dir
-        self.type = type
-
-        if type == 'train':
-            self.cmip6 = np.load(f'{data_dir}/train_cmip6.npy')
-            self.chirps = np.load(f'{data_dir}/train_chirps.npy')
-        elif type == 'val':
-            self.cmip6 = np.load(f'{data_dir}/val_cmip6.npy')
-            self.chirps = np.load(f'{data_dir}/val_chirps.npy')
-        elif type == 'test':
-            self.cmip6 = np.load(f'{data_dir}/test_cmip6.npy')
-            self.chirps = np.load(f'{data_dir}/test_chirps.npy')
-        else:
-            raise ValueError(f'Invalid type: {type} (must be train, val or test)')
-        
-        self.chirps[np.isnan(self.chirps)] = 0
-        self.cmip6[np.isnan(self.cmip6)] = 0
+        super().__init__(data_dir, type)
 
         # if chirps and cmip6 are all zero, remove it
-        self.chirps2 = []
-        self.cmip62 = []
-        for i in range(len(self.chirps)):
-            if self.chirps[i].sum() != 0 and self.cmip6[i].sum() != 0:
-                self.chirps2.append(self.chirps[i])
-                self.cmip62.append(self.cmip6[i])
+        if type != 'eval':
+            self.chirps2 = []
+            self.cmip62 = []
+            for i in range(len(self.chirps)):
+                if self.chirps[i].sum() != 0 and self.cmip6[i].sum() != 0:
+                    self.chirps2.append(self.chirps[i])
+                    self.cmip62.append(self.cmip6[i])
         
-        self.chirps = np.array(self.chirps2)
-        self.cmip6 = np.array(self.cmip62)
-
-        # find mean and std
-        self.chirps_max = self.chirps.max()
-        self.chirps_min = self.chirps.min()
-        self.cmip6_max = self.cmip6.max()
-        self.cmip6_min = self.cmip6.min()
+            self.chirps = np.array(self.chirps2)
+            self.cmip6 = np.array(self.cmip62)
 
         self.chirps = (self.chirps - self.chirps_min) / (self.chirps_max - self.chirps_min)
         self.cmip6 = (self.cmip6 - self.cmip6_min) / (self.cmip6_max - self.cmip6_min)
@@ -215,94 +211,12 @@ class ChirpsCmip6(torch.utils.data.Dataset):
         return cmip6.to(torch.float32), chirps_low.to(torch.float32)
 
 
-class ChirpsDataModule(pl.LightningDataModule):
-    
-        def __init__(self, data_dir="dataset/high-low", batch_size=32, transforms=False, scale=5, crop=160) -> None:
-    
-            super().__init__()
-            self.data_dir = data_dir
-            self.batch_size = batch_size
-            self.transforms = transforms
-            self.scale = scale
-            self.crop = crop
-    
-        def prepare_data(self):
-            """Prepare data.
-            """
-            ...
-    
-        def setup(self, stage=None):
-            """Setup data.
-    
-            Args:
-                stage (str, optional): Stage. Defaults to None.
-            """
-            if stage == 'fit':
-                self.train_dataset = Chirps(data_dir=self.data_dir, type='train', transformations=self.transforms,
-                                            scale=self.scale, crop=self.crop)
-                self.val_dataset = Chirps(data_dir=self.data_dir, type='val', transformations=False,
-                                            scale=self.scale, crop=self.crop)
-            if stage == 'test':
-                self.test_dataset = Chirps(data_dir=self.data_dir, type='test', transformations=False,
-                                            scale=self.scale, crop=self.crop)
-    
-        def train_dataloader(self):
-            """Train dataloader.
-            """
-            return torch.utils.data.DataLoader(
-                self.train_dataset,
-                batch_size=self.batch_size,
-                shuffle=True,
-                num_workers=8
-            )
-    
-        def val_dataloader(self):
-            """Validation dataloader.
-            """
-            return torch.utils.data.DataLoader(
-                self.val_dataset,
-                batch_size=self.batch_size,
-                shuffle=False,
-                num_workers=8
-            )
-    
-        def test_dataloader(self):
-            """Test dataloader.
-            """
-            return torch.utils.data.DataLoader(
-                self.test_dataset,
-                batch_size=self.batch_size,
-                shuffle=False,
-                num_workers=8
-            )
+class GeospatialBaseModule(pl.LightningDataModule):
 
-class ChirpsCmip6DataModule(pl.LightningDataModule):
-
-    def __init__(self, data_dir="dataset/high-low", batch_size=32, transforms=False) -> None:
-
-        super().__init__()
-        
+    def __init__(self, data_dir, batch_size, transforms):
         self.data_dir = data_dir
         self.batch_size = batch_size
         self.transforms = transforms
-
-    def prepare_data(self):
-        """Prepare data.
-        """
-        ...
-
-    def setup(self, stage=None):
-        """Setup data.
-
-        Args:
-            stage (str, optional): Stage. Defaults to None.
-        """
-        if stage == 'fit' or stage is None:
-            self.train_dataset = ChirpsCmip6(data_dir=self.data_dir, type='train', transformations=self.transforms)
-            self.val_dataset = ChirpsCmip6(data_dir=self.data_dir, type='val', transformations=False)
-        if stage == 'test' or stage is None:
-            self.test_dataset = ChirpsCmip6(data_dir=self.data_dir, type='test', transformations=False)
-
 
     def train_dataloader(self):
         """Training dataloader.
@@ -336,19 +250,54 @@ class ChirpsCmip6DataModule(pl.LightningDataModule):
             num_workers=4,
             pin_memory=True
         )
+
+class ChirpsDataModule(GeospatialBaseModule):
     
-class BlurChirpsDataModule(pl.LightningDataModule):
-    
-        def __init__(self, data_dir="dataset/high-low", batch_size=32) -> None:
-    
-            super().__init__()
+        def __init__(self, data_dir="dataset/high-low", batch_size=32, transforms=False, scale=5, crop=160) -> None:
+            super().__init__(data_dir, batch_size, transforms)
             self.data_dir = data_dir
             self.batch_size = batch_size
+            self.transforms = transforms
+            self.scale = scale
+            self.crop = crop
+        
+        def setup(self, stage=None):
+            """Setup data.
     
-        def prepare_data(self):
-            """Prepare data.
+            Args:
+                stage (str, optional): Stage. Defaults to None.
             """
-            ...
+            if stage == 'fit':
+                self.train_dataset = Chirps(data_dir=self.data_dir, type='train', transformations=self.transforms,
+                                            scale=self.scale, crop=self.crop)
+                self.val_dataset = Chirps(data_dir=self.data_dir, type='val', transformations=False,
+                                            scale=self.scale, crop=self.crop)
+            if stage == 'test':
+                self.test_dataset = Chirps(data_dir=self.data_dir, type='test', transformations=False,
+                                            scale=self.scale, crop=self.crop)
+
+class ChirpsCmip6DataModule(GeospatialBaseModule):
+
+    def __init__(self, data_dir="dataset/high-low", batch_size=32, transforms=False) -> None:
+        super().__init__(data_dir, batch_size, transforms)
+
+    def setup(self, stage=None):
+        """Setup data.
+
+        Args:
+            stage (str, optional): Stage. Defaults to None.
+        """
+        if stage == 'fit' or stage is None:
+            self.train_dataset = ChirpsCmip6(data_dir=self.data_dir, type='train', transformations=self.transforms)
+            self.val_dataset = ChirpsCmip6(data_dir=self.data_dir, type='val', transformations=False)
+        if stage == 'test' or stage is None:
+            self.test_dataset = ChirpsCmip6(data_dir=self.data_dir, type='test', transformations=False)
+
+    
+class BlurChirpsDataModule(GeospatialBaseModule):
+    
+        def __init__(self, data_dir="dataset/high-low", batch_size=32, transforms=False) -> None:
+            super().__init__(data_dir, batch_size, transforms)
     
         def setup(self, stage=None):
             """Setup data.
@@ -361,33 +310,3 @@ class BlurChirpsDataModule(pl.LightningDataModule):
                 self.val_dataset = BlurChirps(data_dir=self.data_dir, type='val')
             if stage == 'test':
                 self.test_dataset = BlurChirps(data_dir=self.data_dir, type='test')
-    
-        def train_dataloader(self):
-            """Train dataloader.
-            """
-            return torch.utils.data.DataLoader(
-                self.train_dataset,
-                batch_size=self.batch_size,
-                shuffle=True,
-                num_workers=8
-            )
-    
-        def val_dataloader(self):
-            """Validation dataloader.
-            """
-            return torch.utils.data.DataLoader(
-                self.val_dataset,
-                batch_size=self.batch_size,
-                shuffle=False,
-                num_workers=8
-            )
-    
-        def test_dataloader(self):
-            """Test dataloader.
-            """
-            return torch.utils.data.DataLoader(
-                self.test_dataset,
-                batch_size=self.batch_size,
-                shuffle=False,
-                num_workers=8
-            )
