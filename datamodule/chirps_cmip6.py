@@ -1,9 +1,12 @@
 import lightning.pytorch as pl
 import torch
 import numpy as np
+import xarray as xr
+import pandas as pd
 from torchvision import transforms
 from copy import deepcopy
 import random
+
 
 class Geospatial(torch.utils.data.Dataset):
 
@@ -33,33 +36,59 @@ class Geospatial(torch.utils.data.Dataset):
         self.cmip6_min = self.cmip6.min()
 
     @staticmethod
-    def reconstruct_image(images: np.array, ratio = 5):
+    def reconstruct_image(images: np.array, ratio=5):
         num_images, _, _ = images.shape
-        images = images.reshape(num_images//(ratio*ratio), ratio*ratio, images.shape[1], images.shape[1])
+        images = images.reshape(num_images // (ratio * ratio), ratio * ratio, images.shape[1], images.shape[1])
         _, num_pieces, piece_size, _ = images.shape
 
         pieces_axis = int(np.sqrt(num_pieces))
-        
+
         reconstruct_image_size = pieces_axis * piece_size
         reconstruct_images = []
-        for image in images:
+
+        for img_set in images:
             reconstructed_image = np.zeros((reconstruct_image_size, reconstruct_image_size))
 
-            for image in images:
-                i = 0
-                for k in range(pieces_axis):
-                    for j in range(pieces_axis):
-                        reconstruct_init_hor = piece_size * k
-                        reconstruct_end_hor  = piece_size * k + piece_size
-                        reconstruct_init_vert = piece_size * j
-                        reconstruct_end_vert = piece_size * j + piece_size
-                        reconstructed_image[reconstruct_init_hor:reconstruct_end_hor, reconstruct_init_vert:reconstruct_end_vert] = image[i]
-                        i += 1
-
+            i = 0
+            for k in range(pieces_axis):
+                for j in range(pieces_axis):
+                    reconstruct_init_hor = piece_size * k
+                    reconstruct_end_hor = piece_size * k + piece_size
+                    reconstruct_init_vert = piece_size * j
+                    reconstruct_end_vert = piece_size * j + piece_size
+                    reconstructed_image[reconstruct_init_hor:reconstruct_end_hor, reconstruct_init_vert:reconstruct_end_vert] = img_set[i]
+                    i += 1
 
             reconstruct_images.append(np.flip(reconstructed_image, axis=0))
 
         return np.array(reconstruct_images)
+    
+    @staticmethod
+    def create_xarray(data: np.array, start_date: pd.Timestamp = pd.Timestamp('2007-01-01'), bbox=[-35, -75, 5, -35]):
+        num_time_steps, image_size, _ = data.shape
+        
+        date_range = xr.cftime_range(start=start_date, periods=len(num_time_steps), freq="1M")
+
+        # Create the time_coords using xr.DataArray with date values
+        time_coords = xr.DataArray(date_range, dims=("time",), attrs={"units": "months"})
+
+        # Create latitude and longitude arrays
+        latitude_values = np.arange(bbox[0], bbox[2], image_size)
+        longitude_values = np.arange(bbox[1], bbox[3], image_size)
+
+        # Create coordinate arrays using xarray DataArray
+        latitude_coords = xr.DataArray(latitude_values, dims=("lat",), attrs={"units": "degrees_north"})
+        longitude_coords = xr.DataArray(longitude_values, dims=("lon",), attrs={"units": "degrees_east"})
+
+        # Create a DataArray with the input data and coordinate values
+        data_array = xr.DataArray(data, dims=("time", "lat", "lon"), coords={"time": time_coords, "lat": latitude_coords, "lon": longitude_coords})
+
+        # Create the xarray Dataset
+        dataset = xr.Dataset({"data": data_array})
+
+        return dataset
+
+
 
 class BlurChirps(Geospatial):
     """ BlurChirps dataset.
