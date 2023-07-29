@@ -59,7 +59,7 @@ class Geospatial(torch.utils.data.Dataset):
                     reconstructed_image[reconstruct_init_hor:reconstruct_end_hor, reconstruct_init_vert:reconstruct_end_vert] = img_set[i]
                     i += 1
 
-            reconstruct_images.append(np.flip(reconstructed_image, axis=0))
+            reconstruct_images.append(reconstructed_image)
 
         return np.array(reconstruct_images)
     
@@ -67,26 +67,27 @@ class Geospatial(torch.utils.data.Dataset):
     def create_xarray(data: np.array, start_date: pd.Timestamp = pd.Timestamp('2007-01-01'), bbox=[-35, -75, 5, -35]):
         num_time_steps, image_size, _ = data.shape
         
-        date_range = xr.cftime_range(start=start_date, periods=len(num_time_steps), freq="1M")
+        date_range = xr.cftime_range(start=start_date, periods=num_time_steps, freq="1M")
 
         # Create the time_coords using xr.DataArray with date values
         time_coords = xr.DataArray(date_range, dims=("time",), attrs={"units": "months"})
 
         # Create latitude and longitude arrays
-        latitude_values = np.arange(bbox[0], bbox[2], image_size)
-        longitude_values = np.arange(bbox[1], bbox[3], image_size)
+        latitude_values = np.linspace(bbox[0], bbox[2], image_size)
+        longitude_values = np.linspace(bbox[1], bbox[3], image_size)
 
         # Create coordinate arrays using xarray DataArray
-        latitude_coords = xr.DataArray(latitude_values, dims=("lat",), attrs={"units": "degrees_north"})
-        longitude_coords = xr.DataArray(longitude_values, dims=("lon",), attrs={"units": "degrees_east"})
+        latitude_coords = xr.DataArray(latitude_values, dims=("latitude",), attrs={"units": "degrees_north"})
+        longitude_coords = xr.DataArray(longitude_values, dims=("longitude",), attrs={"units": "degrees_east"})
 
         # Create a DataArray with the input data and coordinate values
-        data_array = xr.DataArray(data, dims=("time", "lat", "lon"), coords={"time": time_coords, "lat": latitude_coords, "lon": longitude_coords})
+        data_array = xr.DataArray(
+            data,
+            dims=("time", "latitude", "longitude"),
+            coords={"time": time_coords, "latitude": latitude_coords, "longitude": longitude_coords}
+        )
 
-        # Create the xarray Dataset
-        dataset = xr.Dataset({"data": data_array})
-
-        return dataset
+        return data_array
 
 
 
