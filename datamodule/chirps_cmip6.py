@@ -7,6 +7,10 @@ from torchvision import transforms
 from copy import deepcopy
 import random
 
+import cartopy.crs as ccrs
+import matplotlib.pyplot as plt
+import cartopy.feature as cfeature
+
 
 class Geospatial(torch.utils.data.Dataset):
 
@@ -62,6 +66,46 @@ class Geospatial(torch.utils.data.Dataset):
             reconstruct_images.append(reconstructed_image)
 
         return np.array(reconstruct_images)
+
+    @staticmethod
+    def plot_map(data):
+        # Create the figure and axes with PlateCarree projection
+        ax_low = plt.axes(projection=ccrs.PlateCarree())
+
+        # Plot coastlines
+        ax_low.coastlines()
+
+        # Plot country boundaries for Brazil with thicker lines
+        brazil = cfeature.NaturalEarthFeature(
+            category='cultural',
+            name='admin_1_states_provinces_lines',
+            scale='50m',
+            facecolor='none',
+            edgecolor='white',  # Change the edge color to white
+            linewidth=0.5       # Increase the linewidth to make it thicker
+        )
+        ax_low.add_feature(brazil)
+
+        # Plot country boundaries for other countries with thinner lines
+        other_countries = cfeature.NaturalEarthFeature(
+            category='cultural',
+            name='admin_0_countries',
+            scale='50m',
+            facecolor='none',
+            edgecolor='white',    # Use grey color for other countries
+            linewidth=0.7        # Use thinner lines for other countries
+        )
+        ax_low.add_feature(other_countries)
+
+        # Plot your data on the map
+        data.isel(time=0).plot(ax=ax_low, transform=ccrs.PlateCarree())
+
+        # Add gridlines and labels with grey color
+        gl = ax_low.gridlines(draw_labels=True, color='grey', linewidth=0.3)
+
+        # Show the plot
+        plt.show()
+
     
     @staticmethod
     def create_xarray(data: np.array, start_date: pd.Timestamp = pd.Timestamp('2007-01-01'), bbox=[-35, -75, 5, -35]):
@@ -248,6 +292,9 @@ class GeospatialBaseModule(pl.LightningDataModule):
         self.batch_size = batch_size
         self.transforms = transforms
 
+    def prepare_data(self):
+        ...
+
     def train_dataloader(self):
         """Training dataloader.
         """
@@ -281,16 +328,22 @@ class GeospatialBaseModule(pl.LightningDataModule):
             pin_memory=True
         )
 
-class ChirpsDataModule(GeospatialBaseModule):
+class ChirpsDataModule(pl.LightningDataModule):
     
         def __init__(self, data_dir="dataset/high-low", batch_size=32, transforms=False, scale=5, crop=160) -> None:
-            super().__init__(data_dir, batch_size, transforms)
+    
+            super().__init__()
             self.data_dir = data_dir
             self.batch_size = batch_size
             self.transforms = transforms
             self.scale = scale
             self.crop = crop
-        
+    
+        def prepare_data(self):
+            """Prepare data.
+            """
+            ...
+    
         def setup(self, stage=None):
             """Setup data.
     
@@ -305,6 +358,36 @@ class ChirpsDataModule(GeospatialBaseModule):
             if stage == 'test':
                 self.test_dataset = Chirps(data_dir=self.data_dir, type='test', transformations=False,
                                             scale=self.scale, crop=self.crop)
+    
+        def train_dataloader(self):
+            """Train dataloader.
+            """
+            return torch.utils.data.DataLoader(
+                self.train_dataset,
+                batch_size=self.batch_size,
+                shuffle=True,
+                num_workers=8
+            )
+    
+        def val_dataloader(self):
+            """Validation dataloader.
+            """
+            return torch.utils.data.DataLoader(
+                self.val_dataset,
+                batch_size=self.batch_size,
+                shuffle=False,
+                num_workers=8
+            )
+    
+        def test_dataloader(self):
+            """Test dataloader.
+            """
+            return torch.utils.data.DataLoader(
+                self.test_dataset,
+                batch_size=self.batch_size,
+                shuffle=False,
+                num_workers=8
+            )
 
 class ChirpsCmip6DataModule(GeospatialBaseModule):
 
