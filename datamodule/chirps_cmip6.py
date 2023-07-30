@@ -68,7 +68,7 @@ class Geospatial(torch.utils.data.Dataset):
         return np.array(reconstruct_images)
 
     @staticmethod
-    def plot_map(data):
+    def plot_map(data, time, cmap='viridis'):
         # Create the figure and axes with PlateCarree projection
         ax_low = plt.axes(projection=ccrs.PlateCarree())
 
@@ -98,7 +98,7 @@ class Geospatial(torch.utils.data.Dataset):
         ax_low.add_feature(other_countries)
 
         # Plot your data on the map
-        data.isel(time=0).plot(ax=ax_low, transform=ccrs.PlateCarree())
+        data.isel(time=time).plot(ax=ax_low, transform=ccrs.PlateCarree(), vmin=0, vmax=1, cmap=cmap)
 
         # Add gridlines and labels with grey color
         gl = ax_low.gridlines(draw_labels=True, color='grey', linewidth=0.3)
