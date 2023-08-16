@@ -5,6 +5,7 @@ script/
 *test*
 lightning_logs*
 logs
+weights
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
