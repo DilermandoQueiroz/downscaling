@@ -8,4 +8,4 @@ The aim of this project is to perform the downscaling of CNRM-CMIP6 model data t
 
 The downscaling process involves adjusting the spatial resolutions of the CNRM-CMIP6 data to match the spatial and temporal resolution of CHIRPS. This allows for a more detailed and accurate estimation of precipitation.
 
-![Spatial downscaling](image/train.gif)
+![Spatial downscaling](image/bias.gif)
