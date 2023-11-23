@@ -116,7 +116,7 @@ class VisionTransformer(nn.Module):
                     qkv_bias=True,
                     drop_path=dpr[i],
                     norm_layer=nn.LayerNorm,
-                    proj_drop=drop_rate,
+                    # proj_drop=drop_rate,
                     attn_drop=drop_rate,
                 )
                 for i in range(depth)

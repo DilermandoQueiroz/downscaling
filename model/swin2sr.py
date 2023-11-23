@@ -10,7 +10,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
-from torchmetrics.image import PeakSignalNoiseRatio
+from torchmetrics.image import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
+from torchvision import transforms
 
 class Swin2SRLight(pl.LightningModule):
 
@@ -71,14 +72,21 @@ class Swin2SRLight(pl.LightningModule):
         x, y = batch
         z = self(x)
         loss = torch.nn.MSELoss()(z, y)
-        loss_data = torch.nn.MSELoss()(x, y)
-
         psnr = PeakSignalNoiseRatio()(z, y)
+        ssim = StructuralSimilarityIndexMeasure()(z, y)
+
+        x = transforms.Resize((y.shape[2], y.shape[3]))(x)
+        loss_data = torch.nn.MSELoss()(x, y)
         psnr_data = PeakSignalNoiseRatio()(x, y)
+        ssim_data = StructuralSimilarityIndexMeasure()(x, y)
+
         self.log('test_mse_model', loss)
-        self.log('test_mse_data', loss_data)
         self.log('test_psnr_model', psnr)
+        self.log('test_ssim_model', ssim)
+
+        self.log('test_mse_data', loss_data)
         self.log('test_psnr_data', psnr_data)
+        self.log('test_ssim_data', ssim_data)
         
         return loss
     
